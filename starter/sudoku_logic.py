@@ -4,6 +4,11 @@ import random
 SIZE = 9
 EMPTY = 0
 MIN_UNIQUE_CLUES = 35
+DIFFICULTY_CLUES = {
+    'easy': 45,
+    'medium': 40,
+    'hard': 35,
+}
 _UNIQUE_TEMPLATE = [
     [5, 3, 4, 6, 7, 8, 9, 0, 0],
     [6, 0, 0, 1, 9, 5, 0, 0, 0],
@@ -133,7 +138,13 @@ def remove_cells(board, clues):
     for row, col in positions[: SIZE * SIZE - clues]:
         board[row][col] = EMPTY
 
-def generate_puzzle(clues=35):
+def generate_puzzle(clues=35, difficulty=None):
+    if difficulty is not None:
+        try:
+            clues = DIFFICULTY_CLUES[difficulty.lower()]
+        except (AttributeError, KeyError):
+            raise ValueError('difficulty must be Easy, Medium, or Hard')
+
     if not MIN_UNIQUE_CLUES <= clues <= SIZE * SIZE:
         raise ValueError(f'clues must be between {MIN_UNIQUE_CLUES} and {SIZE * SIZE}')
 

@@ -1,3 +1,5 @@
+import pytest
+
 import sudoku_logic
 
 
@@ -38,6 +40,30 @@ def test_generate_puzzle_returns_valid_solution_and_requested_clues():
                 for col in range(box_col, box_col + 3)
             ]
             assert sorted(box) == list(range(1, sudoku_logic.SIZE + 1))
+
+
+def test_difficulty_levels_have_expected_prefilled_cell_order():
+    easy, _ = sudoku_logic.generate_puzzle(difficulty='Easy')
+    medium, _ = sudoku_logic.generate_puzzle(difficulty='Medium')
+    hard, _ = sudoku_logic.generate_puzzle(difficulty='Hard')
+
+    easy_clues = sum(cell != sudoku_logic.EMPTY for row in easy for cell in row)
+    medium_clues = sum(cell != sudoku_logic.EMPTY for row in medium for cell in row)
+    hard_clues = sum(cell != sudoku_logic.EMPTY for row in hard for cell in row)
+
+    assert easy_clues >= medium_clues >= hard_clues
+
+
+def test_difficulty_puzzles_have_one_solution():
+    for difficulty in ('easy', 'medium', 'hard'):
+        puzzle, _ = sudoku_logic.generate_puzzle(difficulty=difficulty)
+
+        assert sudoku_logic.count_solutions(puzzle) == 1
+
+
+def test_generate_puzzle_rejects_invalid_difficulty():
+    with pytest.raises(ValueError):
+        sudoku_logic.generate_puzzle(difficulty='expert')
 
 
 def test_count_solutions_returns_zero_for_invalid_board():

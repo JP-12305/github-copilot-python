@@ -35,6 +35,21 @@ def test_new_game_returns_requested_size_puzzle_and_stores_solution(client):
     assert CURRENT['solution'] is not None
 
 
+def test_new_game_generates_requested_difficulty(client):
+    response = client.get('/new?difficulty=easy')
+    puzzle = response.get_json()['puzzle']
+
+    assert response.status_code == 200
+    assert sum(cell != 0 for row in puzzle for cell in row) == 45
+
+
+def test_new_game_rejects_invalid_difficulty(client):
+    response = client.get('/new?difficulty=expert')
+
+    assert response.status_code == 400
+    assert 'difficulty' in response.get_json()['error']
+
+
 def test_check_solution_requires_game_in_progress(client):
     response = client.post('/check', json={'board': [[0] * 9 for _ in range(9)]})
 
