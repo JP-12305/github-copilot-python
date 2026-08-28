@@ -10,10 +10,12 @@ def client():
     app.config.update(TESTING=True)
     CURRENT['puzzle'] = None
     CURRENT['solution'] = None
+    CURRENT['hint_count'] = 0
     with app.test_client() as test_client:
         yield test_client
     CURRENT['puzzle'] = None
     CURRENT['solution'] = None
+    CURRENT['hint_count'] = 0
 
 
 def test_index_renders_sudoku_page(client):
@@ -96,3 +98,56 @@ def test_check_solution_ignores_unentered_cells(client):
 
     assert response.status_code == 200
     assert response.get_json() == {'incorrect': []}
+
+
+def test_hint_fills_one_empty_cell_with_solution_value_and_counts_it(client):
+    client.get('/new?clues=35')
+    board = copy.deepcopy(CURRENT['puzzle'])
+    expected = next(
+        (row, col)
+        for row in range(9)
+        for col in range(9)
+        if board[row][col] == 0
+    )
+
+    response = client.post('/hint', json={'board': board})
+    hint = response.get_json()
+
+    assert response.status_code == 200
+    assert (hint['row'], hint['col']) == expected
+    assert hint['value'] == CURRENT['solution'][expected[0]][expected[1]]
+    assert hint['hint_count'] == 1
+
+
+def test_second_hint_uses_another_empty_cell_and_new_game_resets_count(client):
+    client.get('/new?clues=35')
+    board = copy.deepcopy(CURRENT['puzzle'])
+
+    first = client.post('/hint', json={'board': board}).get_json()
+    board[first['row']][first['col']] = first['value']
+    second = client.post('/hint', json={'board': board}).get_json()
+
+    assert (first['row'], first['col']) != (second['row'], second['col'])
+    assert second['hint_count'] == 2
+    client.get('/new?difficulty=easy')
+    assert CURRENT['hint_count'] == 0
+
+
+def test_hint_does_not_modify_prefilled_cells_or_completed_board(client):
+    client.get('/new?clues=35')
+    board = copy.deepcopy(CURRENT['puzzle'])
+    prefilled = copy.deepcopy(board)
+
+    hint = client.post('/hint', json={'board': board}).get_json()
+
+    assert board == prefilled
+    assert board[hint['row']][hint['col']] == 0
+
+    client.get('/new?clues=81')
+    board = copy.deepcopy(CURRENT['puzzle'])
+
+    response = client.post('/hint', json={'board': board})
+
+    assert response.get_json()['message'] == 'No empty cells remain.'
+    assert response.get_json()['hint_count'] == 0
+    assert board == CURRENT['puzzle']

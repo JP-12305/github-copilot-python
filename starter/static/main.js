@@ -2,6 +2,8 @@
 const SIZE = 9;
 let puzzle = [];
 let lockedCells = [];
+let hintedCells = [];
+let hintCount = 0;
 
 function getInputs() {
   return document.getElementById('sudoku-board').getElementsByTagName('input');
@@ -78,6 +80,8 @@ function createBoardElement() {
 function renderPuzzle(puz) {
   puzzle = puz;
   lockedCells = puzzle.map(row => row.map(value => value !== 0));
+  hintedCells = puzzle.map(row => row.map(() => false));
+  hintCount = 0;
   createBoardElement();
   const boardDiv = document.getElementById('sudoku-board');
   const inputs = boardDiv.getElementsByTagName('input');
@@ -98,6 +102,52 @@ function renderPuzzle(puz) {
   }
 }
 
+function getBoard() {
+  const inputs = getInputs();
+  const board = [];
+  for (let i = 0; i < SIZE; i++) {
+    board[i] = [];
+    for (let j = 0; j < SIZE; j++) {
+      const value = inputs[i * SIZE + j].value;
+      board[i][j] = value ? parseInt(value, 10) : 0;
+    }
+  }
+  return board;
+}
+
+async function requestHint() {
+  const res = await fetch('/hint', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({board: getBoard()})
+  });
+  const data = await res.json();
+  const msg = document.getElementById('message');
+  if (data.error) {
+    msg.style.color = '#d32f2f';
+    msg.innerText = data.error;
+    return;
+  }
+
+  hintCount = data.hint_count;
+  document.getElementById('hint-count').innerText = `Hints used: ${hintCount}`;
+  if (data.row === undefined) {
+    msg.style.color = '#d32f2f';
+    msg.innerText = data.message;
+    return;
+  }
+
+  const idx = data.row * SIZE + data.col;
+  const input = getInputs()[idx];
+  input.value = data.value;
+  hintedCells[data.row][data.col] = true;
+  lockedCells[data.row][data.col] = true;
+  input.disabled = true;
+  input.classList.add('hinted');
+  input.classList.remove('invalid', 'incorrect');
+  msg.innerText = '';
+}
+
 async function newGame() {
   const difficulty = document.getElementById('difficulty').value;
   const res = await fetch(`/new?difficulty=${encodeURIComponent(difficulty)}`);
@@ -107,17 +157,8 @@ async function newGame() {
 }
 
 async function checkSolution() {
-  const boardDiv = document.getElementById('sudoku-board');
   const inputs = getInputs();
-  const board = [];
-  for (let i = 0; i < SIZE; i++) {
-    board[i] = [];
-    for (let j = 0; j < SIZE; j++) {
-      const idx = i * SIZE + j;
-      const val = inputs[idx].value;
-      board[i][j] = val ? parseInt(val, 10) : 0;
-    }
-  }
+  const board = getBoard();
   const res = await fetch('/check', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -153,6 +194,7 @@ async function checkSolution() {
 // Wire buttons
 window.addEventListener('load', () => {
   document.getElementById('new-game').addEventListener('click', newGame);
+  document.getElementById('hint').addEventListener('click', requestHint);
   document.getElementById('difficulty').addEventListener('change', newGame);
   document.getElementById('check-solution').addEventListener('click', checkSolution);
   // initialize
