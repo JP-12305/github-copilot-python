@@ -22,6 +22,30 @@ def test_generate_puzzle_returns_valid_solution_and_requested_clues():
         for col in range(sudoku_logic.SIZE)
     )
     assert sum(cell != sudoku_logic.EMPTY for row in puzzle for cell in row) == clues
+    assert sudoku_logic.count_solutions(puzzle) == 1
+
+    for row in solution:
+        assert sorted(row) == list(range(1, sudoku_logic.SIZE + 1))
+    for col in range(sudoku_logic.SIZE):
+        assert sorted(solution[row][col] for row in range(sudoku_logic.SIZE)) == list(
+            range(1, sudoku_logic.SIZE + 1)
+        )
+    for box_row in range(0, sudoku_logic.SIZE, 3):
+        for box_col in range(0, sudoku_logic.SIZE, 3):
+            box = [
+                solution[row][col]
+                for row in range(box_row, box_row + 3)
+                for col in range(box_col, box_col + 3)
+            ]
+            assert sorted(box) == list(range(1, sudoku_logic.SIZE + 1))
+
+
+def test_count_solutions_returns_zero_for_invalid_board():
+    board = sudoku_logic.create_empty_board()
+    board[0][0] = 1
+    board[0][1] = 1
+
+    assert sudoku_logic.count_solutions(board) == 0
 
 
 def test_is_safe_rejects_existing_row_column_and_box_values():
