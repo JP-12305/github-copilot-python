@@ -43,6 +43,19 @@ def test_new_game_generates_requested_difficulty(client):
     assert sum(cell != 0 for row in puzzle for cell in row) == 45
 
 
+def test_new_game_preserves_prefilled_cells_in_solution(client):
+    response = client.get('/new?difficulty=hard')
+    puzzle = response.get_json()['puzzle']
+    solution = CURRENT['solution']
+
+    assert all(
+        puzzle[row][col] == solution[row][col]
+        for row in range(9)
+        for col in range(9)
+        if puzzle[row][col] != 0
+    )
+
+
 def test_new_game_rejects_invalid_difficulty(client):
     response = client.get('/new?difficulty=expert')
 
@@ -75,3 +88,11 @@ def test_check_solution_reports_incorrect_cell(client):
 
     assert response.status_code == 200
     assert response.get_json() == {'incorrect': [[0, 0]]}
+
+
+def test_check_solution_ignores_unentered_cells(client):
+    client.get('/new?clues=35')
+    response = client.post('/check', json={'board': copy.deepcopy(CURRENT['puzzle'])})
+
+    assert response.status_code == 200
+    assert response.get_json() == {'incorrect': []}

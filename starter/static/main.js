@@ -1,6 +1,48 @@
 // Client-side rendering and interaction for the Flask-backed Sudoku
 const SIZE = 9;
 let puzzle = [];
+let lockedCells = [];
+
+function getInputs() {
+  return document.getElementById('sudoku-board').getElementsByTagName('input');
+}
+
+function getCellValue(row, col) {
+  const input = getInputs()[row * SIZE + col];
+  return input.value;
+}
+
+function hasConflict(row, col) {
+  const value = getCellValue(row, col);
+  if (!value) return false;
+
+  for (let index = 0; index < SIZE; index++) {
+    if (index !== col && getCellValue(row, index) === value) return true;
+    if (index !== row && getCellValue(index, col) === value) return true;
+  }
+
+  const startRow = row - row % 3;
+  const startCol = col - col % 3;
+  for (let boxRow = startRow; boxRow < startRow + 3; boxRow++) {
+    for (let boxCol = startCol; boxCol < startCol + 3; boxCol++) {
+      if ((boxRow !== row || boxCol !== col) && getCellValue(boxRow, boxCol) === value) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function validateEntries() {
+  const inputs = getInputs();
+  for (let idx = 0; idx < inputs.length; idx++) {
+    const row = Math.floor(idx / SIZE);
+    const col = idx % SIZE;
+    if (!lockedCells[row][col]) {
+      inputs[idx].classList.toggle('invalid', hasConflict(row, col));
+    }
+  }
+}
 
 function createBoardElement() {
   const boardDiv = document.getElementById('sudoku-board');
@@ -16,8 +58,16 @@ function createBoardElement() {
       input.dataset.row = i;
       input.dataset.col = j;
       input.addEventListener('input', (e) => {
+        const row = Number(e.target.dataset.row);
+        const col = Number(e.target.dataset.col);
+        if (lockedCells[row][col]) {
+          e.target.value = puzzle[row][col];
+          return;
+        }
         const val = e.target.value.replace(/[^1-9]/g, '');
         e.target.value = val;
+        e.target.classList.remove('incorrect');
+        validateEntries();
       });
       rowDiv.appendChild(input);
     }
@@ -27,6 +77,7 @@ function createBoardElement() {
 
 function renderPuzzle(puz) {
   puzzle = puz;
+  lockedCells = puzzle.map(row => row.map(value => value !== 0));
   createBoardElement();
   const boardDiv = document.getElementById('sudoku-board');
   const inputs = boardDiv.getElementsByTagName('input');
@@ -38,7 +89,7 @@ function renderPuzzle(puz) {
       if (val !== 0) {
         inp.value = val;
         inp.disabled = true;
-        inp.className += ' prefilled';
+        inp.classList.add('prefilled');
       } else {
         inp.value = '';
         inp.disabled = false;
@@ -57,7 +108,7 @@ async function newGame() {
 
 async function checkSolution() {
   const boardDiv = document.getElementById('sudoku-board');
-  const inputs = boardDiv.getElementsByTagName('input');
+  const inputs = getInputs();
   const board = [];
   for (let i = 0; i < SIZE; i++) {
     board[i] = [];
@@ -83,12 +134,14 @@ async function checkSolution() {
   for (let idx = 0; idx < inputs.length; idx++) {
     const inp = inputs[idx];
     if (inp.disabled) continue;
-    inp.className = 'sudoku-cell';
-    if (incorrect.has(idx)) {
-      inp.className = 'sudoku-cell incorrect';
-    }
+    inp.classList.remove('incorrect');
+    inp.classList.toggle('incorrect', incorrect.has(idx) && inp.value !== '');
   }
-  if (incorrect.size === 0) {
+  const incomplete = Array.from(inputs).some(input => input.value === '');
+  if (incorrect.size === 0 && incomplete) {
+    msg.style.color = '#d32f2f';
+    msg.innerText = 'The puzzle is incomplete.';
+  } else if (incorrect.size === 0) {
     msg.style.color = '#388e3c';
     msg.innerText = 'Congratulations! You solved it!';
   } else {
