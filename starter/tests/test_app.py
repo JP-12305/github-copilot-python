@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from app import CURRENT, app
+from app import CURRENT, app, is_board_solved
 
 
 @pytest.fixture
@@ -10,12 +10,22 @@ def client():
     app.config.update(TESTING=True)
     CURRENT['puzzle'] = None
     CURRENT['solution'] = None
+    CURRENT['difficulty'] = 'medium'
     CURRENT['hint_count'] = 0
+    CURRENT['active'] = False
+    CURRENT['completed'] = False
+    CURRENT['elapsed_time'] = 0
+    CURRENT['final_time'] = None
     with app.test_client() as test_client:
         yield test_client
     CURRENT['puzzle'] = None
     CURRENT['solution'] = None
+    CURRENT['difficulty'] = 'medium'
     CURRENT['hint_count'] = 0
+    CURRENT['active'] = False
+    CURRENT['completed'] = False
+    CURRENT['elapsed_time'] = 0
+    CURRENT['final_time'] = None
 
 
 def test_index_renders_sudoku_page(client):
@@ -24,6 +34,15 @@ def test_index_renders_sudoku_page(client):
     assert response.status_code == 200
     assert b'<title>Sudoku Game</title>' in response.data
     assert b'id="sudoku-board"' in response.data
+
+
+def test_index_includes_theme_toggle_and_theme_root(client):
+    response = client.get('/')
+
+    assert response.status_code == 200
+    assert b'data-theme="light"' in response.data
+    assert b'id="theme-toggle"' in response.data
+    assert b'aria-label="Toggle dark and light mode"' in response.data
 
 
 def test_new_game_returns_requested_size_puzzle_and_stores_solution(client):
@@ -72,6 +91,31 @@ def test_check_solution_requires_game_in_progress(client):
     assert response.get_json() == {'error': 'No game in progress'}
 
 
+def test_new_game_resets_completion_and_state(client):
+    client.get('/new?difficulty=easy')
+
+    assert CURRENT['active'] is True
+    assert CURRENT['completed'] is False
+    assert CURRENT['difficulty'] == 'easy'
+    assert CURRENT['hint_count'] == 0
+    assert CURRENT['elapsed_time'] == 0
+
+
+def test_is_board_solved_requires_full_correct_board(client):
+    client.get('/new?clues=35')
+    solved = copy.deepcopy(CURRENT['solution'])
+
+    assert is_board_solved(solved, CURRENT['solution']) is True
+
+    incomplete = copy.deepcopy(CURRENT['solution'])
+    incomplete[0][0] = 0
+    assert is_board_solved(incomplete, CURRENT['solution']) is False
+
+    incorrect = copy.deepcopy(CURRENT['solution'])
+    incorrect[0][0] = incorrect[0][0] % 9 + 1
+    assert is_board_solved(incorrect, CURRENT['solution']) is False
+
+
 def test_check_solution_reports_no_incorrect_cells_for_solution(client):
     client.get('/new?clues=81')
 
@@ -79,6 +123,7 @@ def test_check_solution_reports_no_incorrect_cells_for_solution(client):
 
     assert response.status_code == 200
     assert response.get_json() == {'incorrect': []}
+    assert CURRENT['completed'] is True
 
 
 def test_check_solution_reports_incorrect_cell(client):
