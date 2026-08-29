@@ -112,7 +112,7 @@ def check_solution():
         CURRENT['completed'] = False
         CURRENT['active'] = bool(CURRENT.get('puzzle') is not None)
 
-    return jsonify({'incorrect': incorrect})
+    return jsonify({'incorrect': incorrect, 'completed': completed})
 
 
 if __name__ == '__main__':

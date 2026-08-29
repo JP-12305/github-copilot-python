@@ -215,7 +215,7 @@ existing functionality was preserved.
 
 ## Copilot Evidence
 
-The `screenshots` folder contains screenshots documenting the
+The `Screenshots` folder contains screenshots documenting the
 Copilot-assisted development process and application results.
 
 ### Testing

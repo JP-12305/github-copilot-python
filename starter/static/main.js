@@ -1,4 +1,8 @@
 // Client-side rendering and interaction for the Flask-backed Sudoku
+// Copilot review note: an earlier Copilot suggestion auto-saved the leaderboard as soon as the board was solved.
+// That suggestion was rejected after review because it bypassed the required name prompt and could create
+// duplicate or unintended leaderboard entries. The app now waits for an explicit player-name submit and only
+// records the score if it qualifies for the Top 10 fastest times.
 const SIZE = 9;
 const LEADERBOARD_STORAGE_KEY = 'sudokuTopScores';
 const THEME_STORAGE_KEY = 'sudokuTheme';
@@ -121,6 +125,17 @@ function limitScores(scores) {
   return sortScores(scores).slice(0, MAX_LEADERBOARD_SIZE);
 }
 
+function qualifiesForLeaderboard(existingScores, newScore) {
+  const safeExistingScores = [...existingScores];
+  if (safeExistingScores.length < MAX_LEADERBOARD_SIZE) {
+    return true;
+  }
+
+  const sortedScores = sortScores(safeExistingScores);
+  const tenthPlaceScore = sortedScores[MAX_LEADERBOARD_SIZE - 1];
+  return Boolean(tenthPlaceScore) && Number(newScore.time || 0) < Number(tenthPlaceScore.time || 0);
+}
+
 function addScore(score) {
   const playerName = sanitizeName(score.name);
   if (!playerName) {
@@ -134,7 +149,12 @@ function addScore(score) {
     hints: Number(score.hints) || 0,
   };
 
-  const updatedScores = limitScores([...loadScores(), newScore]);
+  const existingScores = loadScores();
+  if (!qualifiesForLeaderboard(existingScores, newScore)) {
+    return false;
+  }
+
+  const updatedScores = limitScores([...existingScores, newScore]);
   saveScores(updatedScores);
   renderLeaderboard();
   return true;
@@ -481,13 +501,15 @@ function handleLeaderboardSubmit(event) {
   if (!nameInput) {
     return;
   }
+
+  if (scoreRecordedForCompletedGame || !puzzleSolved) {
+    return;
+  }
+
   const playerName = sanitizeName(nameInput.value);
   if (!playerName) {
     setMessage('Please enter a player name for the leaderboard.', 'var(--error-color)');
     nameInput.focus();
-    return;
-  }
-  if (scoreRecordedForCompletedGame) {
     return;
   }
 
@@ -502,6 +524,7 @@ function handleLeaderboardSubmit(event) {
   if (didSave) {
     scoreRecordedForCompletedGame = true;
   }
+
   closeLeaderboardModal();
 }
 

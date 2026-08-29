@@ -122,7 +122,7 @@ def test_check_solution_reports_no_incorrect_cells_for_solution(client):
     response = client.post('/check', json={'board': copy.deepcopy(CURRENT['solution'])})
 
     assert response.status_code == 200
-    assert response.get_json() == {'incorrect': []}
+    assert response.get_json() == {'incorrect': [], 'completed': True}
     assert CURRENT['completed'] is True
 
 
@@ -134,7 +134,7 @@ def test_check_solution_reports_incorrect_cell(client):
     response = client.post('/check', json={'board': board})
 
     assert response.status_code == 200
-    assert response.get_json() == {'incorrect': [[0, 0]]}
+    assert response.get_json() == {'incorrect': [[0, 0]], 'completed': False}
 
 
 def test_check_solution_ignores_unentered_cells(client):
@@ -142,7 +142,7 @@ def test_check_solution_ignores_unentered_cells(client):
     response = client.post('/check', json={'board': copy.deepcopy(CURRENT['puzzle'])})
 
     assert response.status_code == 200
-    assert response.get_json() == {'incorrect': []}
+    assert response.get_json() == {'incorrect': [], 'completed': False}
 
 
 def test_hint_fills_one_empty_cell_with_solution_value_and_counts_it(client):
